@@ -72,16 +72,16 @@ facet = Facet(0, 1, 3, 0, 0)
 facet2 = Facet(1, 2, 3, 1, 3)
 mesh.facets = [facet, facet2]
 
-mesh.add_restriction(Vertex(-SIZE/2, 0), Vertex(SIZE/2, 0))
+
 
 print("Adding vertices...")
 if rectangular:
     # Si la bandera 'rectangular' está activada, generar una cuadrícula
     grid_size = int(math.sqrt(POINTS))  # Número de columnas y filas
-    x_step = 2 * (SIZE-500) / grid_size  # Espaciado horizontal
-    y_step = 2 * (SIZE-500) / grid_size  # Espaciado vertical
-    start_x = -(SIZE-500)
-    start_y = -(SIZE-500)
+    x_step = 2 * (SIZE*0.9) / grid_size  # Espaciado horizontal
+    y_step = 2 * (SIZE*0.9) / grid_size  # Espaciado vertical
+    start_x = -(SIZE*0.9)
+    start_y = -(SIZE*0.9)
 
     for i in range(grid_size):
         for j in range(grid_size):
@@ -90,6 +90,10 @@ if rectangular:
             new_vertex = Vertex(x, y, 0)
             # print("punto (", x, ", ", y, ")",i, ", ", j)
             mesh.add_vertex(new_vertex)
+    print("Adding restrictions:", time.time()-start)
+    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*1.5), Vertex(start_x + x_step*grid_size*0.75, y_step*0.5))
+    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*2.5), Vertex(start_x + x_step*grid_size*0.75, y_step*1.5))
+    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*3.5), Vertex(start_x + x_step*grid_size*0.75, y_step*2.5))
 else:
 # Añadir puntos aleatorios a la malla
     for i in range(POINTS):
@@ -102,6 +106,10 @@ else:
             mesh.add_vertex(new_vertex)
         except ValueError as e:
             print(f"Couldn't add vertex: {e}")
+    print("Adding restrictions:", time.time()-start)
+    mesh.add_restriction(Vertex(-SIZE/2, 5.0), Vertex(SIZE/2, 5.0))
+    mesh.add_restriction(Vertex(-SIZE/2, 10.0), Vertex(SIZE/2, 10.0))
+    mesh.add_restriction(Vertex(-SIZE/2, 15.0), Vertex(SIZE/2, 15.0))
 
 
 end  = time.time()

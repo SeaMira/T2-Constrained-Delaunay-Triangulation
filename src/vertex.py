@@ -23,10 +23,10 @@ class Vertex:
         return x.__key() == y.__key() and type(x) == type(y)
 
     def __key(self):
-        return (self.x, self.y, self.z, self.index)
+        return (self.x, self.y, self.index)
 
     def __hash__(self):
         return hash(self.__key())
 
     def get_vertex(self):
-        return [self.x, self.y, self.z]
+        return [self.x, self.y]

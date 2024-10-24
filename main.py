@@ -91,9 +91,9 @@ if rectangular:
             # print("punto (", x, ", ", y, ")",i, ", ", j)
             mesh.add_vertex(new_vertex)
     print("Adding restrictions:", time.time()-start)
-    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*1.5), Vertex(start_x + x_step*grid_size*0.75, y_step*0.5))
-    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*2.5), Vertex(start_x + x_step*grid_size*0.75, y_step*1.5))
-    mesh.add_restriction(Vertex(start_x + x_step*grid_size*0.72 , y_step*3.5), Vertex(start_x + x_step*grid_size*0.75, y_step*2.5))
+    mesh.add_restriction(Vertex(start_x + x_step*(grid_size/2)*0.72 , y_step*1.5), Vertex(start_x + x_step*(grid_size/2)*0.75, y_step*0.5))
+    mesh.add_restriction(Vertex(start_x + x_step*(grid_size/2)*0.72 , y_step*2.5), Vertex(start_x + x_step*(grid_size/2)*0.75, y_step*1.5))
+    mesh.add_restriction(Vertex(start_x + x_step*(grid_size/2)*0.72 , y_step*3.5), Vertex(start_x + x_step*(grid_size/2)*0.75, y_step*2.5))
 else:
 # Añadir puntos aleatorios a la malla
     for i in range(POINTS):

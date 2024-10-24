@@ -87,8 +87,40 @@ class HalfedgeMesh:
                         halfedge.is_restricted = True
                         opp.is_restricted = True
                         return
-                    if self.edges_intersect(v1, v2, halfedge):
+                    if self.edges_intersect(v1, v2, halfedge) and self.is_strictly_convex_quadrilateral(halfedge):
                         self.flip_edge(halfedge, True)
+
+        # crossing_halfedges = []
+
+        # for halfedge in self.halfedges:
+        #     if halfedge.opposite != None:
+        #         if self.edges_intersect(v1, v2, halfedge):
+        #             crossing_halfedges.append(halfedge)
+
+        # while crossing_halfedges:
+        #     # 3.1: Eliminar una arista de la lista de intersecciones
+        #     halfedge = crossing_halfedges.pop()
+
+        #     if (self.vertices[halfedge.vertex] == v1 and self.vertices[self.halfedges[halfedge.opposite].vertex] == v2) or (self.vertices[halfedge.vertex] == v2 and self.vertices[self.halfedges[halfedge.opposite].vertex] == v1):
+        #         halfedge.is_restricted = True
+        #         continue
+            
+        #     # 3.2: Verificar si los dos triángulos que comparten la arista forman un cuadrilátero convexo
+        #     if not self.is_strictly_convex_quadrilateral(halfedge):
+        #         # Si el cuadrilátero no es convexo, volver a añadir la arista a la lista
+        #         crossing_halfedges.append(halfedge)
+        #         continue
+
+        #     # Realizar un flip de la diagonal para sustituir la arista v_k-v_l
+        #     new_diagonal = self.flip_edge(halfedge)
+
+        #     # Verificar si la nueva diagonal intersecta la arista restringida
+        #     if (self.vertices[new_diagonal.vertex] == v1 and self.vertices[self.halfedges[new_diagonal.opposite].vertex] == v2) or (self.vertices[new_diagonal.vertex] == v2 and self.vertices[self.halfedges[new_diagonal.opposite].vertex] == v1):
+        #         new_diagonal.is_restricted = True
+        #         continue
+        #     elif self.edges_intersect(new_v1, new_v2, new_diagonal):
+        #         crossing_halfedges.append(new_diagonal)
+            
         
     def create_three_new_faces(self, halfedge_a, halfedge_b, halfedge_c, new_vertex):
         new_vertex.index = len(self.vertices)
@@ -418,6 +450,8 @@ class HalfedgeMesh:
             self.flip_edges_if_needed(prev_2)
             self.flip_edges_if_needed(next_2)
 
+        return halfedge
+
     def is_point_in_triangle(self, vertex, facet):
         """
         Determine if a vertex lies within the given triangle (facet).
@@ -518,6 +552,18 @@ class HalfedgeMesh:
             if self.halfedges[he.prev].vertex == vertex_index:
                 self.halfedges[he.prev].deleted = True
             # self.fix_border(he, vertex_index)
+
+    def is_strictly_convex_quadrilateral(self, hf):
+        v1 = self.vertices[hf.vertex]
+        v2 = self.vertices[self.halfedges[self.halfedges[hf.opposite].prev].vertex]
+        v3 = self.vertices[self.halfedges[hf.opposite].vertex]
+        v4 = self.vertices[self.halfedges[hf.next].vertex]
+
+        cross1 = cross_product(v1, v2, v3)
+        cross2 = cross_product(v2, v3, v4)
+        cross3 = cross_product(v3, v4, v1)
+        cross4 = cross_product(v4, v1, v2)
+        return cross1 > 0 and cross2 > 0 and cross3 > 0 and cross4 > 0
 
     # def fix_border(self, halfedge, vertex_index):
     #     if halfedge.vertex == vertex_index and halfedge.opposite != None:

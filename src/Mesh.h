@@ -30,6 +30,10 @@ private:
 
 public:
 
+    const std::vector<std::shared_ptr<HalfEdge>>& get_halfedges() const {
+        return halfedges;
+    }
+
     HalfEdgeMesh(double SIZE, int POINTS) {
         // Inicializar los vértices base del contenedor
         vertices.reserve(POINTS+4);
@@ -129,7 +133,7 @@ public:
             double dif_y = new_vertex->y - v->y;
             double dist = dif_x*dif_x+ dif_y*dif_y;
             if (dist < 1e-10) {
-                return; // Vértice ya existe, no hacer nada
+                return v; // Vértice ya existe, no hacer nada
             }
         }
 

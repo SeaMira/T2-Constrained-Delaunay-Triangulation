@@ -88,6 +88,13 @@ int main(int argc, char const* argv[]) {
                 std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
             }
         }
+        auto construction__time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> contruction_elapsed = construction__time - start_time;
+        std::cout << "Tiempo de inserción de puntos: " << contruction_elapsed.count() << " segundos." << std::endl;
+        std::cout << "Anadiendo restricciones" << std::endl;
+        mesh.add_restriction(Vertex((double)SIZE/2.0, 6.0), Vertex((double)SIZE/2.0, 10.0));
+        mesh.add_restriction(Vertex((double)SIZE/2.0, 10.0), Vertex((double)SIZE/2.0, 12.0));
+        mesh.add_restriction(Vertex((double)SIZE/2.0, 15.0), Vertex((double)SIZE/2.0, 17.0));
     } else {
         // Si la bandera rectangular está activada, generar una cuadrícula
         int grid_size = static_cast<int>(std::sqrt(POINTS));  // Número de columnas y filas
@@ -111,7 +118,9 @@ int main(int argc, char const* argv[]) {
                 }
             }
         }
-        mesh.add_restriction(Vertex(start_x + x_step*(grid_size/2)*0.72 , y_step*1.5), Vertex(start_x + x_step*(grid_size/2)*0.75, y_step*0.5));
+        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*1.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*0.5));
+        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*2.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*1.5));
+        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*3.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*2.5));
     }
 
     // Detener el cronómetro
@@ -119,7 +128,7 @@ int main(int argc, char const* argv[]) {
     std::chrono::duration<double> elapsed = end_time - start_time;
 
     // Imprimir el tiempo de inserción
-    std::cout << "Tiempo de inserción de puntos: " << elapsed.count() << " segundos." << std::endl;
+    std::cout << "Tiempo de construccion total: " << elapsed.count() << " segundos." << std::endl;
 
     // Guardar la malla en un archivo .off
     mesh.write_to_off(filename);
@@ -251,6 +260,10 @@ void processInput(GLFWwindow *window, float deltaTime)
         globCamera->OnKeyboard(5, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         globCamera->OnKeyboard(6, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        globCamera->OnKeyboard(7, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        globCamera->OnKeyboard(8, deltaTime);
     
     
 }

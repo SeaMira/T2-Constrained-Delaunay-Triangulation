@@ -5,6 +5,7 @@
 #include "HalfEdge.h"
 #include "Facet.h"
 #include <fstream>
+#include <iostream>
 #include <string> 
 #include <cstdlib>  // Para random
 #include <ctime>    // Para inicializar random
@@ -161,24 +162,30 @@ public:
     void add_restriction(Vertex new_v1, Vertex new_v2) {
         auto v1 = add_vertex(new_v1.x, new_v1.y); 
         auto v2 = add_vertex(new_v2.x, new_v2.y); 
-
+        Point p1 = v1->to_cgal_point(), p2 = v2->to_cgal_point();
+        std::vector<std::shared_ptr<HalfEdge>> to_flip_edges;
         while (true) {
             for(std::shared_ptr<HalfEdge>& halfedge : halfedges) {
                 if (halfedge->opposite != nullptr) {
                     std::shared_ptr<HalfEdge> opp = halfedge->opposite;
-                    if ((halfedge->vertex == v1 && opp->vertex == v2) || (opp->vertex == v1 && halfedge->vertex == v2)) {
+                    if ((halfedge->vertex->x == v1->x && halfedge->vertex->y == v1->y && opp->vertex->x == v2->x && opp->vertex->y == v2->y) || 
+                            (opp->vertex->x == v1->x && opp->vertex->y == v1->y && halfedge->vertex->x == v2->x && halfedge->vertex->y == v2->y)) {
                         halfedge->is_restricted = true;
                         opp->is_restricted = true;
+                        std::cout << "Se encontró la arista restringida" << std::endl;
                         return;
                     }
-                    Point p1 = v1->to_cgal_point(), p2 = v2->to_cgal_point(), p3 = halfedge->vertex->to_cgal_point(), p4 = opp->vertex->to_cgal_point();
+                    // std::cout << "Intento de insercion" << std::endl;
+                    Point p3 = halfedge->vertex->to_cgal_point(), p4 = opp->vertex->to_cgal_point();
                     if (do_segments_intersect(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(halfedge)) {
+                        // std::cout << "Se hace flip" << std::endl;
                         flip_edge(halfedge, true);
+                        to_flip_edges.push_back(halfedge);
                     }
                 }
             }
         }
-
+        for (const std::shared_ptr<HalfEdge> halfedge : to_flip_edges) flip_edges_if_needed(halfedge);
     }
 
     void create_three_new_faces(std::shared_ptr<HalfEdge>& halfedge_a, 

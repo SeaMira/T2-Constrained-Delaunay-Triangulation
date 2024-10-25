@@ -76,7 +76,7 @@ void Camera::SetScrSize(int width, int height) {
 }
 
 void Camera::OnKeyboard(int key, float dt) {
-    float cameraSpeed = static_cast<float>(10.0f * dt);
+    float cameraSpeed = static_cast<float>(mSpeed * dt);
     switch (key) {
         // W
         case 1:
@@ -112,6 +112,17 @@ void Camera::OnKeyboard(int key, float dt) {
         case 6: 
         {
             cameraPos -=  initCameraUp* cameraSpeed;
+        }
+        break;
+        case 7: 
+        {
+            mSpeed +=  1.0f;
+        }
+        break;
+        case 8: 
+        {
+            mSpeed -=  1.0f;
+            mSpeed = std::max(1.0f, mSpeed);
         }
         break;
     }

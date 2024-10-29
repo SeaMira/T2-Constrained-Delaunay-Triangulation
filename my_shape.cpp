@@ -83,14 +83,12 @@ int main(int argc, char const* argv[]) {
         mesh.add_restriction(Vertex(-SIZE/2.0 + d, -SIZE/2.0), Vertex(-SIZE/2.0 + d + delta/2.0, -SIZE/4.0));
         mesh.add_restriction(Vertex(-SIZE/2.0 + d + delta/2.0, -SIZE/4.0), Vertex(-SIZE/2.0 + d + delta, -SIZE/2.0));
     }
-    // mesh.add_vertex(SIZE/2.0, -SIZE/2.0);
-    // mesh.add_vertex(SIZE/2.0, SIZE/2.0);
-    // mesh.add_restriction(Vertex(SIZE/2.0, -SIZE/2.0), Vertex(SIZE/2.0, SIZE/2.0));
-    // for (double d = 0.0; d < SIZE; d += delta) {
-    //     std::cout << d << std::endl;
-    //     mesh.add_restriction(Vertex(SIZE/2.0 - d, SIZE/2.0), Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0));
-    //     mesh.add_restriction(Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0), Vertex(SIZE/2.0 - d - delta, SIZE/2.0));
-    // }
+    mesh.add_restriction(Vertex(SIZE/2.0, -SIZE/2.0), Vertex(SIZE/2.0, SIZE/2.0));
+    for (double d = 0.0; d < SIZE; d += delta) {
+        std::cout << d << std::endl;
+        mesh.add_restriction(Vertex(SIZE/2.0 - d, SIZE/2.0), Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0));
+        mesh.add_restriction(Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0), Vertex(SIZE/2.0 - d - delta, SIZE/2.0));
+    }
 
 
 

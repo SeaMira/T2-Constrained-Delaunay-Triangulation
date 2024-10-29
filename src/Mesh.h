@@ -394,7 +394,7 @@ public:
         std::shared_ptr<HalfEdge> new_halfedge_d = std::make_shared<HalfEdge>(halfedges.size() + 6, halfedge_f->vertex);
         std::shared_ptr<HalfEdge> new_halfedge_dt = std::make_shared<HalfEdge>(halfedges.size() + 7, new_vertex);
 
-        new_vertex->halfedge = new_halfedge_ct;
+        new_vertex->halfedge = new_halfedge_at;
 
         // Update the current halfedges to point to the new halfedges
         new_halfedge_a->next = new_halfedge_ct;
@@ -512,6 +512,9 @@ public:
         std::shared_ptr<HalfEdge> prev_2 = he_opposite->prev;
 
         // Actualizar los vértices asociados a los halfedges después del flip
+        halfedge->vertex->halfedge = next_2;
+        he_opposite->vertex->halfedge = next_1;
+
         halfedge->vertex = prev_2->vertex;
         he_opposite->vertex = prev_1->vertex;
 

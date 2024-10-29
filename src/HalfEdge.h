@@ -14,6 +14,7 @@ public:
     std::shared_ptr<Vertex> vertex;
     std::shared_ptr<Facet> facet;
     int index;
+    bool is_border = false;
     bool is_restricted = false;
     bool deleted;
 

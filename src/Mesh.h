@@ -23,6 +23,26 @@ bool do_segments_intersect(const Point& p1, const Point& p2, const Point& q1, co
     return result.has_value();
 }
 
+bool do_segments_intersect_excluding_endpoints(const Point& p1, const Point& p2, const Point& q1, const Point& q2) {
+    // Definir los segmentos
+    Segment seg1(p1, p2);
+    Segment seg2(q1, q2);
+
+    // Verificar intersección
+    auto result = CGAL::intersection(seg1, seg2);
+
+    // Si result no es null, significa que hay una intersección
+    if (result) {
+        if (const Point* ipoint = boost::get<Point>(&*result)) {
+            // Verificar si el punto de intersección no es un extremo
+            if (*ipoint != p1 && *ipoint != p2 && *ipoint != q1 && *ipoint != q2) {
+                return true; // Intersección en un punto no extremo
+            }
+        }
+    }
+    return false; // No hay intersección válida o es en un extremo
+}
+
 class HalfEdgeMesh {
 private:
     std::vector<std::shared_ptr<Vertex>> vertices;
@@ -67,6 +87,11 @@ public:
         halfedge_2->prev = halfedge_5;
         halfedge_3->prev = halfedge_2;
         halfedge_5->prev = halfedge_3;
+
+        halfedge_0->is_border = true;
+        halfedge_2->is_border = true;
+        halfedge_3->is_border = true;
+        halfedge_4->is_border = true;
 
         // Establecer las relaciones opuestas
         halfedge_1->opposite = halfedge_5;
@@ -134,6 +159,7 @@ public:
             double dif_y = new_vertex->y - v->y;
             double dist = dif_x*dif_x+ dif_y*dif_y;
             if (dist < 1e-10) {
+                std::cout << "Vértice ya existe" << std::endl;
                 return v; // Vértice ya existe, no hacer nada
             }
         }
@@ -165,25 +191,87 @@ public:
         Point p1 = v1->to_cgal_point(), p2 = v2->to_cgal_point();
         std::vector<std::shared_ptr<HalfEdge>> to_flip_edges;
         while (true) {
-            for(std::shared_ptr<HalfEdge>& halfedge : halfedges) {
-                if (halfedge->opposite != nullptr) {
-                    std::shared_ptr<HalfEdge> opp = halfedge->opposite;
-                    if ((halfedge->vertex->x == v1->x && halfedge->vertex->y == v1->y && opp->vertex->x == v2->x && opp->vertex->y == v2->y) || 
-                            (opp->vertex->x == v1->x && opp->vertex->y == v1->y && halfedge->vertex->x == v2->x && halfedge->vertex->y == v2->y)) {
-                        halfedge->is_restricted = true;
+            std::shared_ptr<HalfEdge> init_hf = v1->halfedge;
+            std::shared_ptr<HalfEdge> current_hf = init_hf;
+
+            do {
+                if (current_hf->opposite != nullptr) {
+                    std::shared_ptr<HalfEdge> opp = current_hf->opposite;
+                    if ((current_hf->vertex->x == v1->x && current_hf->vertex->y == v1->y && opp->vertex->x == v2->x && opp->vertex->y == v2->y) || 
+                            (opp->vertex->x == v1->x && opp->vertex->y == v1->y && current_hf->vertex->x == v2->x && current_hf->vertex->y == v2->y)) {
+                        current_hf->is_restricted = true;
                         opp->is_restricted = true;
                         std::cout << "Se encontró la arista restringida" << std::endl;
                         return;
                     }
-                    // std::cout << "Intento de insercion" << std::endl;
-                    Point p3 = halfedge->vertex->to_cgal_point(), p4 = opp->vertex->to_cgal_point();
-                    if (do_segments_intersect(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(halfedge)) {
-                        // std::cout << "Se hace flip" << std::endl;
-                        flip_edge(halfedge, true);
-                        to_flip_edges.push_back(halfedge);
+                    std::shared_ptr<HalfEdge> opp_to_v = current_hf->next;
+                    std::shared_ptr<HalfEdge> prev_to_v = current_hf->prev;
+                    Point p3 = opp_to_v->vertex->to_cgal_point(), p4 = current_hf->prev->vertex->to_cgal_point();
+                    if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(opp_to_v)) {
+                        std::cout << "Se hace flip" << std::endl;
+                        flip_edge(opp_to_v, true);
+                        to_flip_edges.push_back(opp_to_v);
+                    } else if ((opp_to_v->vertex->x == v1->x && opp_to_v->vertex->y == v1->y) || (prev_to_v->vertex->x == v2->x && prev_to_v->vertex->y == v2->y) || 
+                            (prev_to_v->vertex->x == v1->x && prev_to_v->vertex->y == v1->y) || (opp_to_v->vertex->x == v2->x && opp_to_v->vertex->y == v2->y)) {
+                        std::cout << "Arista opuesta al vertice coincide en vértice de la restricción" << std::endl;
+
+                    } else if (do_segments_intersect(p1, p2, p3, p4) && !is_strictly_convex_quadrilateral(opp_to_v)) {
+                        std::shared_ptr<HalfEdge> across_hf = opp_to_v->opposite;
+                        std::cout << "No adyacente a vértice" << std::endl;
+                        while (!is_strictly_convex_quadrilateral(opp_to_v)) {
+                            if (across_hf != nullptr) {
+                                std::shared_ptr<HalfEdge> n1 = across_hf->next;
+                                std::shared_ptr<HalfEdge> n2 = across_hf->prev;
+                                p3 = n1->vertex->to_cgal_point(), p4 = n2->vertex->to_cgal_point();
+                                Point p5 = across_hf->vertex->to_cgal_point();
+                                if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(n1)) {
+                                    std::cout << "flip n1" << std::endl;
+                                    flip_edge(n1, true);
+                                    to_flip_edges.push_back(n1);
+                                    break;
+                                } else if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && !is_strictly_convex_quadrilateral(n1)) {
+                                    std::cout << "opposite n1" << std::endl;
+                                    across_hf = n1->opposite;
+                                } else if (do_segments_intersect_excluding_endpoints(p1, p2, p4, p5) && is_strictly_convex_quadrilateral(n2)) {
+                                    std::cout << "flip n2" << std::endl;
+                                    flip_edge(n2, true);
+                                    to_flip_edges.push_back(n2);
+                                    break;
+                                } else if (do_segments_intersect_excluding_endpoints(p1, p2, p4, p5) && !is_strictly_convex_quadrilateral(n2)) {
+                                    std::cout << "opposite n2" << std::endl;
+                                    across_hf = n2->opposite;
+                                }
+                            }
+                        }
+                        break;
                     }
                 }
-            }
+                std::cout << "current bord " << (current_hf->is_border) << std::endl;
+                std::cout << "current prev bord " << (current_hf->prev->is_border) << std::endl;
+                current_hf = current_hf->prev->opposite;
+                std::cout << "sig nulo " << (current_hf == nullptr) << std::endl;
+
+            } while (current_hf != init_hf);
+
+            // for(std::shared_ptr<HalfEdge>& halfedge : halfedges) {
+            //     if (halfedge->opposite != nullptr) {
+            //         std::shared_ptr<HalfEdge> opp = halfedge->opposite;
+            //         if ((halfedge->vertex->x == v1->x && halfedge->vertex->y == v1->y && opp->vertex->x == v2->x && opp->vertex->y == v2->y) || 
+            //                 (opp->vertex->x == v1->x && opp->vertex->y == v1->y && halfedge->vertex->x == v2->x && halfedge->vertex->y == v2->y)) {
+            //             halfedge->is_restricted = true;
+            //             opp->is_restricted = true;
+            //             std::cout << "Se encontró la arista restringida" << std::endl;
+            //             return;
+            //         }
+            //         // std::cout << "Intento de insercion" << std::endl;
+            //         Point p3 = halfedge->vertex->to_cgal_point(), p4 = opp->vertex->to_cgal_point();
+            //         if (do_segments_intersect(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(halfedge)) {
+            //             // std::cout << "Se hace flip" << std::endl;
+            //             flip_edge(halfedge, true);
+            //             to_flip_edges.push_back(halfedge);
+            //         }
+            //     }
+            // }
         }
         for (const std::shared_ptr<HalfEdge> halfedge : to_flip_edges) flip_edges_if_needed(halfedge);
     }
@@ -203,6 +291,8 @@ public:
         std::shared_ptr<HalfEdge> new_halfedge_bt = std::make_shared<HalfEdge>(halfedges.size() + 3, new_vertex);
         std::shared_ptr<HalfEdge> new_halfedge_c = std::make_shared<HalfEdge>(halfedges.size() + 4, halfedge_a->vertex);
         std::shared_ptr<HalfEdge> new_halfedge_ct = std::make_shared<HalfEdge>(halfedges.size() + 5, new_vertex);
+
+        new_vertex->halfedge = new_halfedge_at;
 
         // Update the current halfedges to point to the new halfedges
         halfedge_a->next = new_halfedge_a;
@@ -303,6 +393,8 @@ public:
         std::shared_ptr<HalfEdge> new_halfedge_ct = std::make_shared<HalfEdge>(halfedges.size() + 5, new_vertex);
         std::shared_ptr<HalfEdge> new_halfedge_d = std::make_shared<HalfEdge>(halfedges.size() + 6, halfedge_f->vertex);
         std::shared_ptr<HalfEdge> new_halfedge_dt = std::make_shared<HalfEdge>(halfedges.size() + 7, new_vertex);
+
+        new_vertex->halfedge = new_halfedge_ct;
 
         // Update the current halfedges to point to the new halfedges
         new_halfedge_a->next = new_halfedge_ct;
@@ -411,6 +503,7 @@ public:
         // Obtener el halfedge opuesto
         std::shared_ptr<HalfEdge> he_opposite = halfedge->opposite;
 
+
         // Obtener los halfedges alrededor de los triángulos involucrados
         std::shared_ptr<HalfEdge> next_1 = halfedge->next;
         std::shared_ptr<HalfEdge> prev_1 = halfedge->prev;
@@ -421,6 +514,9 @@ public:
         // Actualizar los vértices asociados a los halfedges después del flip
         halfedge->vertex = prev_2->vertex;
         he_opposite->vertex = prev_1->vertex;
+
+        prev_2->vertex->halfedge = prev_2;
+        prev_1->vertex->halfedge = prev_1;
 
         // Actualizar los enlaces next en los halfedges
         halfedge->next = prev_1;

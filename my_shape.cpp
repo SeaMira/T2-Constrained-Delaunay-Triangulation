@@ -35,16 +35,16 @@ float lastFrame = 0.0f;
 
 
 // Función para parsear las opciones con flags
-void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, bool& rectangular, std::string& filename) {
+void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, int& DIV, std::string& filename) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--size" && i + 1 < argc) {
             SIZE = std::stod(argv[++i]);
         } else if (arg == "--points" && i + 1 < argc) {
             POINTS = std::stoi(argv[++i]);
-        } else if (arg == "--rectangular") {
-            rectangular = true;
-        } else if (arg == "--output" && i + 1 < argc) {
+        }  else if (arg == "--div" && i + 1 < argc) {
+            DIV = std::stoi(argv[++i]);
+        }  else if (arg == "--output" && i + 1 < argc) {
             filename = argv[++i];
         } else {
             std::cerr << "Argumento desconocido o incompleto: " << arg << std::endl;
@@ -56,12 +56,12 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, bo
 
 int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
-    int POINTS = 100;    // Valor por defecto
-    bool rectangular = false;
-    std::string filename = "output.off";  // Valor por defecto
+    int POINTS = 0;    // Valor por defecto
+    int DIV = 3;    // Valor por defecto
+    std::string filename = "rec_w_line.off";  // Valor por defecto
 
     // Parsear los argumentos
-    parse_arguments(argc, argv, SIZE, POINTS, rectangular, filename);
+    parse_arguments(argc, argv, SIZE, POINTS, DIV, filename);
 
     // Inicializar la malla
     HalfEdgeMesh mesh(SIZE, POINTS);
@@ -69,16 +69,36 @@ int main(int argc, char const* argv[]) {
     // Configurar generador de números aleatorios
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> dis(-SIZE + 10, SIZE - 10);
+    std::uniform_real_distribution<double> disx(-0.98*SIZE/2.0, 0.98*SIZE);
+    std::uniform_real_distribution<double> disy(-0.98*SIZE/4.0, 0.98*SIZE/4.0);
 
     // Iniciar el cronómetro
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    if (!rectangular) {
+    mesh.add_restriction(Vertex(-SIZE/2.0, SIZE/2.0), Vertex(-SIZE/2.0, -SIZE/2.0));
+
+    double delta = SIZE/DIV;
+    for (double d = 0.0; d < SIZE; d += delta) {
+        std::cout << d << std::endl;
+        mesh.add_restriction(Vertex(-SIZE/2.0 + d, -SIZE/2.0), Vertex(-SIZE/2.0 + d + delta/2.0, -SIZE/4.0));
+        mesh.add_restriction(Vertex(-SIZE/2.0 + d + delta/2.0, -SIZE/4.0), Vertex(-SIZE/2.0 + d + delta, -SIZE/2.0));
+    }
+    // mesh.add_vertex(SIZE/2.0, -SIZE/2.0);
+    // mesh.add_vertex(SIZE/2.0, SIZE/2.0);
+    // mesh.add_restriction(Vertex(SIZE/2.0, -SIZE/2.0), Vertex(SIZE/2.0, SIZE/2.0));
+    // for (double d = 0.0; d < SIZE; d += delta) {
+    //     std::cout << d << std::endl;
+    //     mesh.add_restriction(Vertex(SIZE/2.0 - d, SIZE/2.0), Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0));
+    //     mesh.add_restriction(Vertex(SIZE/2.0 - d - delta/2.0, SIZE/4.0), Vertex(SIZE/2.0 - d - delta, SIZE/2.0));
+    // }
+
+
+
+    if ( POINTS > 0) {
         // Insertar puntos aleatorios
         for (int i = 0; i < POINTS; ++i) {
-            double x = dis(gen);
-            double y = dis(gen);
+            double x = disx(gen);
+            double y = disy(gen);
 
             // Intentar agregar el vértice
             try {
@@ -88,40 +108,7 @@ int main(int argc, char const* argv[]) {
                 std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
             }
         }
-        auto construction__time = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> contruction_elapsed = construction__time - start_time;
-        std::cout << "Tiempo de inserción de puntos: " << contruction_elapsed.count() << " segundos." << std::endl;
-        std::cout << "Anadiendo restricciones" << std::endl;
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 6.0), Vertex((double)SIZE/2.0, 10.0));
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 10.0), Vertex((double)SIZE/2.0, 12.0));
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 15.0), Vertex((double)SIZE/2.0, 17.0));
-    } else {
-        // Si la bandera rectangular está activada, generar una cuadrícula
-        int grid_size = static_cast<int>(std::sqrt(POINTS));  // Número de columnas y filas
-        double x_step = 2 * (SIZE*0.9) / grid_size;  // Espaciado horizontal
-        double y_step = 2 * (SIZE*0.9) / grid_size;  // Espaciado vertical
-        double start_x = -(SIZE*0.9);
-        double start_y = -(SIZE*0.9);
-
-        // Generar los vértices en la cuadrícula
-        for (int i = 0; i < grid_size; ++i) {
-            for (int j = 0; j < grid_size; ++j) {
-                double x = start_x + i * x_step;
-                double y = start_y + j * y_step;
-
-                // Agregar el vértice a la malla
-                try {
-                    // std::cout << "Punto: " << x << ", " << y << std::endl;
-                    mesh.add_vertex(x, y);
-                } catch (const std::runtime_error& e) {
-                    std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
-                }
-            }
-        }
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*1.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*0.8));
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*2.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*1.8));
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*3.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*2.8));
-    }
+    } 
 
     // Detener el cronómetro
     auto end_time = std::chrono::high_resolution_clock::now();

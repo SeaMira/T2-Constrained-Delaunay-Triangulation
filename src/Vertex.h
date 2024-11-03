@@ -14,11 +14,12 @@ class Vertex {
 public:
     double x, y;
     int index;
+    bool is_border;
     bool deleted;
     std::shared_ptr<class HalfEdge> halfedge;
 
-    Vertex(double x = 0, double y = 0, int index = -1)
-        : x(x), y(y), index(index), deleted(false) {}
+    Vertex(double x = 0.0, double y = 0.0, int index = -1, bool is_border = false)
+        : x(x), y(y), index(index), deleted(false), is_border(is_border) {}
 
     Point to_cgal_point() const {
         return Point(x, y);

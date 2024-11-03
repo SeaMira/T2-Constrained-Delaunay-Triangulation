@@ -47,6 +47,7 @@ class HalfEdgeMesh {
 private:
     std::vector<std::shared_ptr<Vertex>> vertices;
     std::vector<std::shared_ptr<HalfEdge>> halfedges;
+    std::vector<Vertex> restrictions;
     std::vector<std::shared_ptr<Facet>> facets;
 
 public:
@@ -59,10 +60,10 @@ public:
         // Inicializar los vértices base del contenedor
         vertices.reserve(POINTS+4);
         // Agregar los 4 vértices iniciales
-        vertices.push_back(std::make_shared<Vertex>(SIZE, SIZE, 0));
-        vertices.push_back(std::make_shared<Vertex>(-SIZE, SIZE, 1));
-        vertices.push_back(std::make_shared<Vertex>(-SIZE, -SIZE, 2));
-        vertices.push_back(std::make_shared<Vertex>(SIZE, -SIZE, 3));
+        vertices.push_back(std::make_shared<Vertex>(SIZE, SIZE, 0, true));
+        vertices.push_back(std::make_shared<Vertex>(-SIZE, SIZE, 1, true));
+        vertices.push_back(std::make_shared<Vertex>(-SIZE, -SIZE, 2, true));
+        vertices.push_back(std::make_shared<Vertex>(SIZE, -SIZE, 3, true));
 
         // Crear los halfedges
         std::shared_ptr<HalfEdge> halfedge_0 = std::make_shared<HalfEdge>(0, vertices[0]);
@@ -150,6 +151,14 @@ public:
         return count;
     }
 
+    int restrictions_size() {
+        return restrictions.size();
+    }
+
+    std::vector<Vertex>* get_restrictions() {
+        return &restrictions;
+    }
+
     std::shared_ptr<Vertex> add_vertex(double x, double y) {
         // Crear y agregar un nuevo vértice
         auto new_vertex = std::make_shared<Vertex>(x, y, vertices.size());
@@ -188,6 +197,8 @@ public:
     void add_restriction(Vertex new_v1, Vertex new_v2) {
         auto v1 = add_vertex(new_v1.x, new_v1.y); 
         auto v2 = add_vertex(new_v2.x, new_v2.y); 
+        restrictions.push_back(new_v1);
+        restrictions.push_back(new_v2);
         Point p1 = v1->to_cgal_point(), p2 = v2->to_cgal_point();
         std::vector<std::shared_ptr<HalfEdge>> to_flip_edges;
         while (true) {
@@ -752,10 +763,11 @@ public:
         for (const auto& facet : facets) {
             if (!facet->deleted) {
                 // Cada faceta es un triángulo, así que tiene 3 vértices
-                file << "3 " 
-                    << facet->a->index << " "
-                    << facet->b->index << " "
-                    << facet->c->index << "\n";
+                if (!facet->a->is_border && !facet->b->is_border && !facet->c->is_border)
+                    file << "3 " 
+                        << facet->a->index << " "
+                        << facet->b->index << " "
+                        << facet->c->index << "\n";
             }
         }
 

@@ -18,7 +18,7 @@
 
 
 struct Vertex3 {
-    float x, y, z;
+    double x, y, z;
 };
 bool loadOFF(const std::string& filename, std::vector<Vertex3>& vertices, std::vector<unsigned int>& indices);
 
@@ -158,8 +158,8 @@ int main(int argc, char const* argv[]) {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("vertex_shader.glsl", "fragment_shader.glsl");
+    Shader restriction_shader("vertex_shader.glsl", "restriction_fragment_shader.glsl");
 
-    // glLineWidth(3); 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     shader.use();
@@ -185,7 +185,28 @@ int main(int argc, char const* argv[]) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
     // Configurar los atributos del vértice
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+
+    std::vector<Vertex3> restrictions;
+    for (const auto& restriction : *(mesh.get_restrictions())) {
+        restrictions.push_back(Vertex3({restriction.x, 0.0, restriction.y}));
+    }
+
+    unsigned int restrictionVBO, restrictionVAO;
+    glGenVertexArrays(1, &restrictionVAO);
+    glGenBuffers(1, &restrictionVBO);
+
+    glBindVertexArray(restrictionVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, restrictionVBO);
+    glBufferData(GL_ARRAY_BUFFER, restrictions.size() * sizeof(Vertex3), restrictions.data(), GL_STATIC_DRAW);
+
+    // Configurar los atributos del vértice para las restricciones
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -204,7 +225,8 @@ int main(int argc, char const* argv[]) {
         processInput(window, deltaTime);
 
 
-
+        shader.use();
+        glLineWidth(1);
         shader.setMat4("model", camera.getModel());
         shader.setMat4("projection", globCamera->getProjection());
         shader.setMat4("view", globCamera->getView());
@@ -212,6 +234,16 @@ int main(int argc, char const* argv[]) {
         // Dibujar la triangulación
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+        
+        restriction_shader.use();
+        glLineWidth(3); 
+        restriction_shader.setMat4("model", camera.getModel());
+        restriction_shader.setMat4("projection", globCamera->getProjection());
+        restriction_shader.setMat4("view", globCamera->getView());
+
+        glBindVertexArray(restrictionVAO);
+        glDrawArrays(GL_LINES, 0, restrictions.size());
         glBindVertexArray(0);
 
         camera.OnRender(deltaTime*10.0f);

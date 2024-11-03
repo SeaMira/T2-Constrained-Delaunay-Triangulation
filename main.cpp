@@ -18,7 +18,7 @@
 
 
 struct Vertex3 {
-    float x, y, z;
+    double x, y, z;
 };
 bool loadOFF(const std::string& filename, std::vector<Vertex3>& vertices, std::vector<unsigned int>& indices);
 
@@ -35,7 +35,7 @@ float lastFrame = 0.0f;
 
 
 // Función para parsear las opciones con flags
-void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, bool& rectangular, std::string& filename) {
+void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, bool& rectangular, std::string& filename, int& num_restrictions, double& rest_len) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--size" && i + 1 < argc) {
@@ -46,9 +46,59 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, bo
             rectangular = true;
         } else if (arg == "--output" && i + 1 < argc) {
             filename = argv[++i];
+        } else if (arg == "--restrictions" && i + 1 < argc) {
+            num_restrictions = std::stoi(argv[++i]);
+        } else if (arg == "--rest_len" && i + 1 < argc) {
+            rest_len = std::stod(argv[++i]);
         } else {
             std::cerr << "Argumento desconocido o incompleto: " << arg << std::endl;
             exit(1);
+        }
+    }
+}
+
+// Función para generar restricciones aleatorias sin intersecciones
+void generate_random_restrictions(HalfEdgeMesh& mesh, int num_restrictions, double SIZE, double max_length) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dis(-SIZE*0.99, SIZE*0.99);
+
+    int restrictions_added = 0;
+    while (restrictions_added < num_restrictions) {
+        std::cout << "Restrictions added: " << restrictions_added << std::endl;
+        // Generar dos puntos aleatorios para la restricción
+        double x1 = dis(gen);
+        double y1 = dis(gen);
+        double x2 = dis(gen);
+        double y2 = dis(gen);
+
+        // Verificar que no sean el mismo punto y que la distancia no exceda max_length
+        double length = std::sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+        if (length == 0 || length > max_length) continue;
+
+        Vertex v1(x1, y1);
+        Vertex v2(x2, y2);
+
+        // Verificar que la nueva restricción no intersecta con las existentes
+        bool intersects = false;
+        const auto& restrictions = *(mesh.get_restrictions());
+
+        for (size_t i = 0; i < restrictions.size(); i += 2) {
+            // Cada restricción es un segmento definido por restrictions[i] y restrictions[i+1]
+            if (i + 1 < restrictions.size()) {
+                if (do_segments_intersect(
+                        v1.to_cgal_point(), v2.to_cgal_point(),
+                        restrictions[i].to_cgal_point(), restrictions[i + 1].to_cgal_point())) {
+                    intersects = true;
+                    break;
+                }
+            }
+        }
+
+        // Si no intersecta, agregar la restricción
+        if (!intersects) {
+            mesh.add_restriction(v1, v2);
+            restrictions_added++;
         }
     }
 }
@@ -58,10 +108,12 @@ int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
     int POINTS = 100;    // Valor por defecto
     bool rectangular = false;
+    int num_restrictions = 1;  
+    double rest_len = 20.0;  // Valor por defecto
     std::string filename = "output.off";  // Valor por defecto
 
     // Parsear los argumentos
-    parse_arguments(argc, argv, SIZE, POINTS, rectangular, filename);
+    parse_arguments(argc, argv, SIZE, POINTS, rectangular, filename, num_restrictions, rest_len);
 
     // Inicializar la malla
     HalfEdgeMesh mesh(SIZE, POINTS);
@@ -92,9 +144,9 @@ int main(int argc, char const* argv[]) {
         std::chrono::duration<double> contruction_elapsed = construction__time - start_time;
         std::cout << "Tiempo de inserción de puntos: " << contruction_elapsed.count() << " segundos." << std::endl;
         std::cout << "Anadiendo restricciones" << std::endl;
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 6.0), Vertex((double)SIZE/2.0, 10.0));
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 10.0), Vertex((double)SIZE/2.0, 12.0));
-        mesh.add_restriction(Vertex((double)SIZE/2.0, 15.0), Vertex((double)SIZE/2.0, 17.0));
+        
+        // Generar restricciones aleatorias
+        generate_random_restrictions(mesh, num_restrictions, SIZE, rest_len);
     } else {
         // Si la bandera rectangular está activada, generar una cuadrícula
         int grid_size = static_cast<int>(std::sqrt(POINTS));  // Número de columnas y filas
@@ -118,9 +170,8 @@ int main(int argc, char const* argv[]) {
                 }
             }
         }
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*1.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*0.8));
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*2.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*1.8));
-        mesh.add_restriction(Vertex(start_x + x_step*((double)grid_size/2.0)*0.72 , y_step*3.5), Vertex(start_x + x_step*((double)grid_size/2.0)*0.75, y_step*2.8));
+        // Generar restricciones aleatorias
+        generate_random_restrictions(mesh, num_restrictions, SIZE*0.9, rest_len);
     }
 
     // Detener el cronómetro
@@ -173,8 +224,8 @@ int main(int argc, char const* argv[]) {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("vertex_shader.glsl", "fragment_shader.glsl");
+    Shader restriction_shader("vertex_shader.glsl", "restriction_fragment_shader.glsl");
 
-    // glLineWidth(3); 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     shader.use();
@@ -200,7 +251,27 @@ int main(int argc, char const* argv[]) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
     // Configurar los atributos del vértice
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    std::vector<Vertex3> restrictions;
+    for (const auto& restriction : *(mesh.get_restrictions())) {
+        restrictions.push_back(Vertex3({restriction.x, 0.0, restriction.y}));
+    }
+
+    unsigned int restrictionVBO, restrictionVAO;
+    glGenVertexArrays(1, &restrictionVAO);
+    glGenBuffers(1, &restrictionVBO);
+
+    glBindVertexArray(restrictionVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, restrictionVBO);
+    glBufferData(GL_ARRAY_BUFFER, restrictions.size() * sizeof(Vertex3), restrictions.data(), GL_STATIC_DRAW);
+
+    // Configurar los atributos del vértice para las restricciones
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
     glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -219,7 +290,8 @@ int main(int argc, char const* argv[]) {
         processInput(window, deltaTime);
 
 
-
+        shader.use();
+        glLineWidth(1);
         shader.setMat4("model", camera.getModel());
         shader.setMat4("projection", globCamera->getProjection());
         shader.setMat4("view", globCamera->getView());
@@ -227,6 +299,16 @@ int main(int argc, char const* argv[]) {
         // Dibujar la triangulación
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        restriction_shader.use();
+        glLineWidth(3); 
+        restriction_shader.setMat4("model", camera.getModel());
+        restriction_shader.setMat4("projection", globCamera->getProjection());
+        restriction_shader.setMat4("view", globCamera->getView());
+
+        glBindVertexArray(restrictionVAO);
+        glDrawArrays(GL_LINES, 0, restrictions.size());
         glBindVertexArray(0);
 
         camera.OnRender(deltaTime*10.0f);

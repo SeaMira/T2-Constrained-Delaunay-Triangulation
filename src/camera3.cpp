@@ -22,6 +22,10 @@ glm::vec3 Camera::getPosition() {
     return cameraPos;
 }
 
+glm::vec3 Camera::getFront() {
+    return cameraFront;
+}
+
 glm::mat4 Camera::getProjection() {
     return glm::perspective(glm::radians(fov), SCR_WIDTH/SCR_HEIGHT, 0.1f, 10000.0f);
 }

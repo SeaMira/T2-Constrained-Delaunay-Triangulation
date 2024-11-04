@@ -712,6 +712,7 @@ public:
                 return current_halfedge;
             } else if (orientation == CGAL::RIGHT_TURN) {
                 // Moverse a la halfedge opuesta y repetir
+                if (current_halfedge->opposite == nullptr) return nullptr;
                 current_halfedge = current_halfedge->opposite;
             } else {
                 // Verificar la siguiente halfedge en el triángulo actual
@@ -721,6 +722,7 @@ public:
                 if (next_orientation == CGAL::COLLINEAR && on_half_edge(vertex, next_halfedge)) {
                     return next_halfedge;
                 } else if (next_orientation == CGAL::RIGHT_TURN) {
+                    if (next_halfedge->opposite == nullptr) return nullptr;
                     current_halfedge = next_halfedge->opposite;
                 } else {
                     // Si no está en ninguna, moverse a la siguiente de la siguiente halfedge
@@ -729,6 +731,7 @@ public:
                     if (next_orientation == CGAL::COLLINEAR) {
                         return current_halfedge;
                     } else if (next_orientation == CGAL::RIGHT_TURN) {
+                        if (current_halfedge->opposite == nullptr) return nullptr;
                         current_halfedge = current_halfedge->opposite;
                     } else return current_halfedge;
                 }
@@ -772,6 +775,99 @@ public:
         }
 
         file.close();
+    }
+
+    std::shared_ptr<HalfEdge> locate_triangle(Vertex vertex) {
+        // Step 1: Empezar con una halfedge aleatoria
+        int random_index = std::rand() % halfedges.size();  // Elegir un índice aleatorio
+        std::shared_ptr<HalfEdge> current_halfedge = halfedges[random_index];
+
+        while (true) {
+            // Obtener el triángulo (facet) asociado a este halfedge
+            std::shared_ptr<Facet> facet = current_halfedge->facet;
+
+            // Verificar si el punto está dentro del triángulo actual
+            // if (is_point_in_triangle(vertex, facet)) {
+            //     return current_halfedge;
+            // }
+
+            // Verificar la orientación con respecto a la halfedge actual
+            CGAL::Orientation orientation = point_orientation(vertex, current_halfedge);
+
+            if (orientation == CGAL::COLLINEAR && on_half_edge(vertex, current_halfedge)) {
+                // El punto está exactamente en esta halfedge, devolver la halfedge actual
+                return current_halfedge;
+            } else if (orientation == CGAL::RIGHT_TURN) {
+                // Moverse a la halfedge opuesta y repetir
+                if (current_halfedge->opposite == nullptr) return nullptr;
+                current_halfedge = current_halfedge->opposite;
+            } else {
+                // Verificar la siguiente halfedge en el triángulo actual
+                std::shared_ptr<HalfEdge> next_halfedge = current_halfedge->next;
+                CGAL::Orientation next_orientation = point_orientation(vertex, next_halfedge);
+
+                if (next_orientation == CGAL::COLLINEAR && on_half_edge(vertex, next_halfedge)) {
+                    return next_halfedge;
+                } else if (next_orientation == CGAL::RIGHT_TURN) {
+                    if (next_halfedge->opposite == nullptr) return nullptr;
+                    current_halfedge = next_halfedge->opposite;
+                } else {
+                    // Si no está en ninguna, moverse a la siguiente de la siguiente halfedge
+                    current_halfedge = next_halfedge->next;
+                    next_orientation = point_orientation(vertex, current_halfedge);
+                    if (next_orientation == CGAL::COLLINEAR) {
+                        return current_halfedge;
+                    } else if (next_orientation == CGAL::RIGHT_TURN) {
+                        if (current_halfedge->opposite == nullptr) return nullptr;
+                        current_halfedge = current_halfedge->opposite;
+                    } else return current_halfedge;
+                }
+            }
+        }
+    }
+
+    CGAL::Orientation point_orientation(const Vertex vertex, const std::shared_ptr<HalfEdge>& halfedge) {
+        // Obtener los puntos CGAL para los dos vértices de la halfedge
+        Point p1 = halfedge->vertex->to_cgal_point();
+        Point p2 = halfedge->next->vertex->to_cgal_point();
+        Point p = vertex.to_cgal_point();
+
+        // Usar CGAL para determinar la orientación
+        CGAL::Orientation orientation = CGAL::orientation(p1, p2, p);
+
+        return orientation;
+    }
+
+    bool on_half_edge(const Vertex v, const std::shared_ptr<HalfEdge>& halfedge) {
+        // Obtener el halfedge opuesto
+        std::shared_ptr<HalfEdge> he_opposite = halfedge->opposite;
+
+        // Obtener los vértices de la halfedge y su opuesto
+        std::shared_ptr<Vertex> v0 = halfedge->vertex;
+        std::shared_ptr<Vertex> v1 = he_opposite->vertex;
+
+        // Verificar las condiciones para la coordenada x
+        bool inx_1;
+        if (v0->x < v1->x) {
+            inx_1 = (v0->x < v.x && v.x < v1->x);
+        } else if (v0->x > v1->x) {
+            inx_1 = (v1->x < v.x && v.x < v0->x);
+        } else {
+            inx_1 = (v1->x == v.x);
+        }
+
+        // Verificar las condiciones para la coordenada y
+        bool iny_1;
+        if (v0->y < v1->y) {
+            iny_1 = (v0->y < v.y && v.y < v1->y);
+        } else if (v0->y > v1->y) {
+            iny_1 = (v1->y < v.y && v.y < v0->y);
+        } else {
+            iny_1 = (v1->y == v.y);
+        }
+
+        // El punto está en la halfedge si está dentro de ambos rangos
+        return inx_1 && iny_1;
     }
 
 };

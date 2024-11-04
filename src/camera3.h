@@ -32,6 +32,7 @@ public:
     void OnScroll(float yoffset);
 
     glm::vec3 getPosition();
+    glm::vec3 getFront();
 
     glm::mat4 getProjection();
     glm::mat4 getOrthographic(float left, float right, float bottom, float top, float near, float far);

@@ -26,8 +26,15 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, float deltaTime);
+void updateTriangleColor(HalfEdgeMesh& mesh, Camera& camera);
 
 Camera* globCamera;
+
+std::vector<Vertex3> selectedTriangle = {
+    { 0.0, 0.0, 0.0 }, // Primer vértice
+    { 0.0, 0.0, 0.0 }, // Segundo vértice
+    { 0.0, 0.0, 0.0 }  // Tercer vértice
+};
 
 float deltaTime = 0.0f;	
 float lastFrame = 0.0f;
@@ -65,7 +72,6 @@ void generate_random_restrictions(HalfEdgeMesh& mesh, int num_restrictions, doub
 
     int restrictions_added = 0;
     while (restrictions_added < num_restrictions) {
-        std::cout << "Restrictions added: " << restrictions_added << std::endl;
         // Generar dos puntos aleatorios para la restricción
         double x1 = dis(gen);
         double y1 = dis(gen);
@@ -278,6 +284,27 @@ int main(int argc, char const* argv[]) {
     glBindVertexArray(0);
 
 
+    // selected T buffers
+    unsigned int triangleVAO, triangleVBO;
+    glGenVertexArrays(1, &triangleVAO);
+    glGenBuffers(1, &triangleVBO);
+
+    // Enlazar el VAO
+    glBindVertexArray(triangleVAO);
+
+    // Enlazar el VBO y cargar los datos
+    glBindBuffer(GL_ARRAY_BUFFER, triangleVBO);
+    glBufferData(GL_ARRAY_BUFFER, selectedTriangle.size() * sizeof(Vertex3), selectedTriangle.data(), GL_STATIC_DRAW);
+
+    // Configurar los atributos del vértice (posición)
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Desenlazar el VBO y el VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+
     // Bucle de renderizado
     while (!glfwWindowShouldClose(window)) {
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -288,8 +315,13 @@ int main(int argc, char const* argv[]) {
         lastFrame = currentFrame;
 
         processInput(window, deltaTime);
+        updateTriangleColor(mesh, camera);
+        // Enviar los datos actualizados al VBO
+        glBindBuffer(GL_ARRAY_BUFFER, triangleVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, selectedTriangle.size() * sizeof(Vertex3), selectedTriangle.data());
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         shader.use();
         glLineWidth(1);
         shader.setMat4("model", camera.getModel());
@@ -301,6 +333,13 @@ int main(int argc, char const* argv[]) {
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        // Dibujar el triángulo seleccionado
+        glBindVertexArray(triangleVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+
+        // Dibujar restricciones
         restriction_shader.use();
         glLineWidth(3); 
         restriction_shader.setMat4("model", camera.getModel());
@@ -420,4 +459,33 @@ bool loadOFF(const std::string& filename, std::vector<Vertex3>& vertices, std::v
 
     file.close();
     return true;
+}
+
+
+void updateTriangleColor(HalfEdgeMesh& mesh, Camera& camera) {
+    // Calcular el punto de intersección en el plano z=0
+    glm::vec3 camPos = camera.getPosition();
+    glm::vec3 camFront = camera.getFront();
+    float t = -camPos.y / camFront.y;
+    glm::vec3 intersectionPoint = camPos + t * camFront;
+
+    // Buscar el triángulo en la intersección y cambiar su color
+    std::shared_ptr<HalfEdge> hf = mesh.locate_triangle(Vertex(intersectionPoint.x, intersectionPoint.z));
+    if (hf != nullptr) {
+       std::shared_ptr<Facet> f = hf->facet;
+       selectedTriangle[0].x = f->a->x;
+       selectedTriangle[0].y = 0.01;
+       selectedTriangle[0].z = f->a->y;
+       selectedTriangle[1].x = f->b->x;
+       selectedTriangle[1].y = 0.01;
+       selectedTriangle[1].z = f->b->y;
+       selectedTriangle[2].x = f->c->x;
+       selectedTriangle[2].y = 0.01;
+       selectedTriangle[2].z = f->c->y;
+    } else {
+       selectedTriangle[0] = Vertex3({0.0, 0.0, 0.0});
+       selectedTriangle[1] = Vertex3({0.0, 0.0, 0.0});
+       selectedTriangle[2] = Vertex3({0.0, 0.0, 0.0});
+
+    }
 }

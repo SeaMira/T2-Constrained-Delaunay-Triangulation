@@ -55,20 +55,13 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, st
 int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
     int POINTS = 0;    // Valor por defecto
-    bool rectangular = false;
-    std::string filename = "rec_w_line.off";  // Valor por defecto
+    std::string filename = "c_shape.off";  // Valor por defecto
 
     // Parsear los argumentos
     parse_arguments(argc, argv, SIZE, POINTS, filename);
 
     // Inicializar la malla
     HalfEdgeMesh mesh(SIZE, POINTS);
-
-    // Configurar generador de números aleatorios
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> disx(-0.98*SIZE/2.0, 0.98*SIZE);
-    std::uniform_real_distribution<double> disy(-0.98*SIZE/4.0, 0.98*SIZE/4.0);
 
     // Iniciar el cronómetro
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -85,10 +78,46 @@ int main(int argc, char const* argv[]) {
     mesh.add_restriction(Vertex(SIZE/2.0, SIZE/2.0), Vertex(-SIZE/2.0, SIZE/2.0));
 
     if ( POINTS > 0) {
+         // Configurar generador de números aleatorios
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<double> top_bottom_x(-0.98*SIZE/2.0, 0.98*SIZE/2);
+        std::uniform_real_distribution<double> top_bottom_y(1.01*SIZE/3.0, 0.98*SIZE/2.0);
+        std::uniform_real_distribution<double> side_x(-0.98*SIZE/2.0, -1.01*SIZE/3.0);
+        std::uniform_real_distribution<double> side_y(-0.98*SIZE/2.0, 0.98*SIZE/2.0);
+        
+        int reps = POINTS/3;
+        
         // Insertar puntos aleatorios
-        for (int i = 0; i < POINTS; ++i) {
-            double x = disx(gen);
-            double y = disy(gen);
+        for (int i = 0; i < reps; ++i) {
+            double x = top_bottom_x(gen);
+            double y = top_bottom_y(gen);
+
+            // Intentar agregar el vértice
+            try {
+                // std::cout << "Punto: " << x << ", " << y << std::endl;
+                mesh.add_vertex(x, y);
+            } catch (const std::runtime_error& e) {
+                std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
+            }
+        }
+
+        for (int i = 0; i < reps; ++i) {
+            double x = side_x(gen);
+            double y = side_y(gen);
+
+            // Intentar agregar el vértice
+            try {
+                // std::cout << "Punto: " << x << ", " << y << std::endl;
+                mesh.add_vertex(x, y);
+            } catch (const std::runtime_error& e) {
+                std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
+            }
+        }
+
+        for (int i = 0; i < reps; ++i) {
+            double x = top_bottom_x(gen);
+            double y = -top_bottom_y(gen);
 
             // Intentar agregar el vértice
             try {

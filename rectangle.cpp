@@ -55,7 +55,6 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, st
 int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
     int POINTS = 0;    // Valor por defecto
-    bool rectangular = false;
     std::string filename = "rect.off";  // Valor por defecto
 
     // Parsear los argumentos

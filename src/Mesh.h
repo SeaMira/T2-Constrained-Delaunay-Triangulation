@@ -130,7 +130,7 @@ public:
     int faces_count() const {
         int count = 0;
         for (const std::shared_ptr<Facet>& face : facets) {
-            if (!face->deleted) {
+            if (!face->deleted && !face->a->is_border && !face->b->is_border && !face->c->is_border) {
                 count++;
             }
         }
@@ -735,7 +735,7 @@ public:
     }
 
     std::vector<std::shared_ptr<Vertex>> lepp(std::shared_ptr<HalfEdge>& hf) {
-        double greates_length = -1.0;
+        double greatest_length = -1.0;
         std::shared_ptr<HalfEdge> selectedHf = hf;
         std::vector<std::shared_ptr<Vertex>> path_vertices;
         while (true) {
@@ -743,18 +743,18 @@ public:
             double d2 = hf_sqrd_length(selectedHf->next);
             double d3 = hf_sqrd_length(selectedHf->prev);
             double d_max = std::max(d1, std::max(d2, d3));
-            if (d_max > greates_length) {
+            if (d_max > greatest_length) {
                 path_vertices.push_back(selectedHf->vertex);
                 path_vertices.push_back(selectedHf->next->vertex);
                 path_vertices.push_back(selectedHf->prev->vertex);
                 if (d_max == d1 && selectedHf->opposite != nullptr) {
-                    greates_length = d1;
+                    greatest_length = d1;
                     selectedHf = selectedHf->opposite;
                 } else if (d_max == d2 && selectedHf->next->opposite != nullptr) {
-                    greates_length = d2;
+                    greatest_length = d2;
                     selectedHf = selectedHf->next->opposite;
                 } else if (d_max == d3 && selectedHf->prev->opposite != nullptr) {
-                    greates_length = d3;
+                    greatest_length = d3;
                     selectedHf = selectedHf->prev->opposite;
                 } else {
                     return path_vertices;

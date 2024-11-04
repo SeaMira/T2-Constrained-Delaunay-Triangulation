@@ -35,14 +35,12 @@ float lastFrame = 0.0f;
 
 
 // Función para parsear las opciones con flags
-void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, int& DIV, std::string& filename) {
+void parse_arguments(int argc, char const* argv[], double& SIZE, int& DIV, std::string& filename) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--size" && i + 1 < argc) {
             SIZE = std::stod(argv[++i]);
-        } else if (arg == "--points" && i + 1 < argc) {
-            POINTS = std::stoi(argv[++i]);
-        }  else if (arg == "--div" && i + 1 < argc) {
+        } else if (arg == "--div" && i + 1 < argc) {
             DIV = std::stoi(argv[++i]);
         }  else if (arg == "--output" && i + 1 < argc) {
             filename = argv[++i];
@@ -56,15 +54,14 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, in
 
 int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
-    int POINTS = 0;    // Valor por defecto
     int DIV = 3;    // Valor por defecto
-    std::string filename = "rec_w_line.off";  // Valor por defecto
+    std::string filename = "my_shape.off";  // Valor por defecto
 
     // Parsear los argumentos
-    parse_arguments(argc, argv, SIZE, POINTS, DIV, filename);
+    parse_arguments(argc, argv, SIZE, DIV, filename);
 
     // Inicializar la malla
-    HalfEdgeMesh mesh(SIZE, POINTS);
+    HalfEdgeMesh mesh(SIZE, 0);
 
     // Configurar generador de números aleatorios
     std::random_device rd;
@@ -91,22 +88,6 @@ int main(int argc, char const* argv[]) {
     }
 
 
-
-    if ( POINTS > 0) {
-        // Insertar puntos aleatorios
-        for (int i = 0; i < POINTS; ++i) {
-            double x = disx(gen);
-            double y = disy(gen);
-
-            // Intentar agregar el vértice
-            try {
-                // std::cout << "Punto: " << x << ", " << y << std::endl;
-                mesh.add_vertex(x, y);
-            } catch (const std::runtime_error& e) {
-                std::cerr << "Couldn't add vertex: " << e.what() << std::endl;
-            }
-        }
-    } 
 
     // Detener el cronómetro
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -165,7 +146,7 @@ int main(int argc, char const* argv[]) {
     shader.use();
 
     Camera camera(800, 600);
-    camera.SetPosition((float) SIZE/2.0, -(float) SIZE, (float) SIZE/2.0);
+    camera.SetPosition((float) SIZE/2.0, std::max(-(float) SIZE, -1000.0f), (float) SIZE/2.0);
     globCamera = &camera;
 
 

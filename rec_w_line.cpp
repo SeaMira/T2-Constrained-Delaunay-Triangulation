@@ -55,7 +55,6 @@ void parse_arguments(int argc, char const* argv[], double& SIZE, int& POINTS, st
 int main(int argc, char const* argv[]) {
     double SIZE = 1000;  // Valor por defecto
     int POINTS = 0;    // Valor por defecto
-    bool rectangular = false;
     std::string filename = "rec_w_line.off";  // Valor por defecto
 
     // Parsear los argumentos
@@ -67,7 +66,7 @@ int main(int argc, char const* argv[]) {
     // Configurar generador de números aleatorios
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> disx(-0.98*SIZE/2.0, 0.98*SIZE);
+    std::uniform_real_distribution<double> disx(-0.98*SIZE/2.0, 0.98*SIZE/2.0);
     std::uniform_real_distribution<double> disy(-0.98*SIZE/4.0, 0.98*SIZE/4.0);
 
     // Iniciar el cronómetro

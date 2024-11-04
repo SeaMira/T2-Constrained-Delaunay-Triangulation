@@ -43,6 +43,12 @@ bool do_segments_intersect_excluding_endpoints(const Point& p1, const Point& p2,
     return false; // No hay intersección válida o es en un extremo
 }
 
+double hf_sqrd_length(const std::shared_ptr<HalfEdge>& hf) {
+    std::shared_ptr<HalfEdge>& hf2 = hf->next;
+    double length = CGAL::squared_distance(hf->vertex->to_cgal_point(), hf2->vertex->to_cgal_point());
+    return length;
+}
+
 class HalfEdgeMesh {
 private:
     std::vector<std::shared_ptr<Vertex>> vertices;
@@ -212,23 +218,19 @@ public:
                             (opp->vertex->x == v1->x && opp->vertex->y == v1->y && current_hf->vertex->x == v2->x && current_hf->vertex->y == v2->y)) {
                         current_hf->is_restricted = true;
                         opp->is_restricted = true;
-                        std::cout << "Se encontró la arista restringida" << std::endl;
                         return;
                     }
                     std::shared_ptr<HalfEdge> opp_to_v = current_hf->next;
                     std::shared_ptr<HalfEdge> prev_to_v = current_hf->prev;
                     Point p3 = opp_to_v->vertex->to_cgal_point(), p4 = current_hf->prev->vertex->to_cgal_point();
                     if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(opp_to_v)) {
-                        std::cout << "Se hace flip" << std::endl;
                         flip_edge(opp_to_v, true);
                         to_flip_edges.push_back(opp_to_v);
                     } else if ((opp_to_v->vertex->x == v1->x && opp_to_v->vertex->y == v1->y) || (prev_to_v->vertex->x == v2->x && prev_to_v->vertex->y == v2->y) || 
                             (prev_to_v->vertex->x == v1->x && prev_to_v->vertex->y == v1->y) || (opp_to_v->vertex->x == v2->x && opp_to_v->vertex->y == v2->y)) {
-                        std::cout << "Arista opuesta al vertice coincide en vértice de la restricción" << std::endl;
 
                     } else if (do_segments_intersect(p1, p2, p3, p4) && !is_strictly_convex_quadrilateral(opp_to_v)) {
                         std::shared_ptr<HalfEdge> across_hf = opp_to_v->opposite;
-                        std::cout << "No adyacente a vértice" << std::endl;
                         while (!is_strictly_convex_quadrilateral(opp_to_v)) {
                             if (across_hf != nullptr) {
                                 std::shared_ptr<HalfEdge> n1 = across_hf->next;
@@ -236,20 +238,16 @@ public:
                                 p3 = n1->vertex->to_cgal_point(), p4 = n2->vertex->to_cgal_point();
                                 Point p5 = across_hf->vertex->to_cgal_point();
                                 if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && is_strictly_convex_quadrilateral(n1)) {
-                                    std::cout << "flip n1" << std::endl;
                                     flip_edge(n1, true);
                                     to_flip_edges.push_back(n1);
                                     break;
                                 } else if (do_segments_intersect_excluding_endpoints(p1, p2, p3, p4) && !is_strictly_convex_quadrilateral(n1)) {
-                                    std::cout << "opposite n1" << std::endl;
                                     across_hf = n1->opposite;
                                 } else if (do_segments_intersect_excluding_endpoints(p1, p2, p4, p5) && is_strictly_convex_quadrilateral(n2)) {
-                                    std::cout << "flip n2" << std::endl;
                                     flip_edge(n2, true);
                                     to_flip_edges.push_back(n2);
                                     break;
                                 } else if (do_segments_intersect_excluding_endpoints(p1, p2, p4, p5) && !is_strictly_convex_quadrilateral(n2)) {
-                                    std::cout << "opposite n2" << std::endl;
                                     across_hf = n2->opposite;
                                 }
                             }
@@ -257,10 +255,7 @@ public:
                         break;
                     }
                 }
-                std::cout << "current bord " << (current_hf->is_border) << std::endl;
-                std::cout << "current prev bord " << (current_hf->prev->is_border) << std::endl;
                 current_hf = current_hf->prev->opposite;
-                std::cout << "sig nulo " << (current_hf == nullptr) << std::endl;
 
             } while (current_hf != init_hf);
 
@@ -735,6 +730,37 @@ public:
                         current_halfedge = current_halfedge->opposite;
                     } else return current_halfedge;
                 }
+            }
+        }
+    }
+
+    std::vector<std::shared_ptr<Vertex>> lepp(std::shared_ptr<HalfEdge>& hf) {
+        double greates_length = -1.0;
+        std::shared_ptr<HalfEdge> selectedHf = hf;
+        std::vector<std::shared_ptr<Vertex>> path_vertices;
+        while (true) {
+            double d1 = hf_sqrd_length(selectedHf);
+            double d2 = hf_sqrd_length(selectedHf->next);
+            double d3 = hf_sqrd_length(selectedHf->prev);
+            double d_max = std::max(d1, std::max(d2, d3));
+            if (d_max > greates_length) {
+                path_vertices.push_back(selectedHf->vertex);
+                path_vertices.push_back(selectedHf->next->vertex);
+                path_vertices.push_back(selectedHf->prev->vertex);
+                if (d_max == d1 && selectedHf->opposite != nullptr) {
+                    greates_length = d1;
+                    selectedHf = selectedHf->opposite;
+                } else if (d_max == d2 && selectedHf->next->opposite != nullptr) {
+                    greates_length = d2;
+                    selectedHf = selectedHf->next->opposite;
+                } else if (d_max == d3 && selectedHf->prev->opposite != nullptr) {
+                    greates_length = d3;
+                    selectedHf = selectedHf->prev->opposite;
+                } else {
+                    return path_vertices;
+                }
+            } else {
+                return path_vertices;
             }
         }
     }

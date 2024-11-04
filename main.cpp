@@ -24,17 +24,23 @@ bool loadOFF(const std::string& filename, std::vector<Vertex3>& vertices, std::v
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, float deltaTime);
 void updateTriangleColor(HalfEdgeMesh& mesh, Camera& camera);
 
 Camera* globCamera;
+HalfEdgeMesh* globalMesh;
 
 std::vector<Vertex3> selectedTriangle = {
     { 0.0, 0.0, 0.0 }, // Primer vértice
     { 0.0, 0.0, 0.0 }, // Segundo vértice
     { 0.0, 0.0, 0.0 }  // Tercer vértice
 };
+std::vector<Vertex3> selectedLEPPTriangles;
+unsigned int LEPPVAO, LEPPVBO;
+
+std::shared_ptr<HalfEdge> selectedHf = nullptr;
 
 float deltaTime = 0.0f;	
 float lastFrame = 0.0f;
@@ -123,7 +129,7 @@ int main(int argc, char const* argv[]) {
 
     // Inicializar la malla
     HalfEdgeMesh mesh(SIZE, POINTS);
-
+    globalMesh = &mesh;
     // Configurar generador de números aleatorios
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -225,6 +231,7 @@ int main(int argc, char const* argv[]) {
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
     glEnable(GL_DEPTH_TEST);
@@ -304,6 +311,26 @@ int main(int argc, char const* argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    // selected LEPP buffers
+    
+    glGenVertexArrays(1, &LEPPVAO);
+    glGenBuffers(1, &LEPPVBO);
+
+    // Enlazar el VAO
+    glBindVertexArray(LEPPVAO);
+
+    // Enlazar el VBO y cargar los datos
+    glBindBuffer(GL_ARRAY_BUFFER, LEPPVBO);
+    glBufferData(GL_ARRAY_BUFFER, selectedLEPPTriangles.size() * sizeof(Vertex3), selectedLEPPTriangles.data(), GL_DYNAMIC_DRAW);
+
+    // Configurar los atributos del vértice (posición)
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(Vertex3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Desenlazar el VBO y el VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
 
     // Bucle de renderizado
     while (!glfwWindowShouldClose(window)) {
@@ -315,7 +342,7 @@ int main(int argc, char const* argv[]) {
         lastFrame = currentFrame;
 
         processInput(window, deltaTime);
-        updateTriangleColor(mesh, camera);
+        // updateTriangleColor(mesh, camera);
         // Enviar los datos actualizados al VBO
         glBindBuffer(GL_ARRAY_BUFFER, triangleVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, selectedTriangle.size() * sizeof(Vertex3), selectedTriangle.data());
@@ -334,9 +361,15 @@ int main(int argc, char const* argv[]) {
         glBindVertexArray(0);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
         // Dibujar el triángulo seleccionado
         glBindVertexArray(triangleVAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+
+        // Dibujar camino de lepp
+        glBindVertexArray(LEPPVAO);
+        glDrawArrays(GL_TRIANGLES, 0, selectedLEPPTriangles.size());
         glBindVertexArray(0);
 
         // Dibujar restricciones
@@ -401,6 +434,33 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     globCamera->OnMouse((float)xposIn, (float)yposIn);
+    updateTriangleColor(*globalMesh, *globCamera);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    // Verificar si el botón izquierdo fue presionado
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS && selectedHf != nullptr) {
+        selectedLEPPTriangles.clear();
+        std::vector<std::shared_ptr<Vertex>> leppV = globalMesh->lepp(selectedHf);
+        for (int i = 0; i < leppV.size(); i+=3) {
+            selectedLEPPTriangles.push_back({leppV[i]->x, 0.01, leppV[i]->y});
+            std::cout << leppV[i]->x << ", " << 0.01 << ", " << leppV[i]->y << std::endl;
+            selectedLEPPTriangles.push_back({leppV[i+1]->x, 0.01, leppV[i+1]->y});
+            std::cout << leppV[i+1]->x << ", " << 0.01 << ", " << leppV[i+1]->y << std::endl;
+            selectedLEPPTriangles.push_back({leppV[i+2]->x, 0.01, leppV[i+2]->y});
+            std::cout << leppV[i+2]->x << ", " << 0.01 << ", " << leppV[i+2]->y << std::endl;
+        }
+        std::cout << "selectedLEPPTriangles size: " << selectedLEPPTriangles.size() << std::endl;
+        glBindBuffer(GL_ARRAY_BUFFER, LEPPVBO);
+        glBufferData(GL_ARRAY_BUFFER, selectedLEPPTriangles.size() * sizeof(Vertex3), selectedLEPPTriangles.data(), GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+       std::cout << "Hola" << std::endl;
+        selectedLEPPTriangles.clear();
+        glBindBuffer(GL_ARRAY_BUFFER, LEPPVBO);
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);  // Vaciar el buffer
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 }
 
 // // glfw: whenever the mouse scroll wheel scrolls, this callback is called
@@ -486,6 +546,6 @@ void updateTriangleColor(HalfEdgeMesh& mesh, Camera& camera) {
        selectedTriangle[0] = Vertex3({0.0, 0.0, 0.0});
        selectedTriangle[1] = Vertex3({0.0, 0.0, 0.0});
        selectedTriangle[2] = Vertex3({0.0, 0.0, 0.0});
-
     }
+    selectedHf = hf;
 }
